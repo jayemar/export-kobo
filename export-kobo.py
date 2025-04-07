@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 import datetime
 import csv
@@ -48,14 +50,6 @@ class CommandLineTool(object):
     #
     AP_PROGRAM = sys.argv[0]
     AP_DESCRIPTION = "Generic Command Line Tool"
-    AP_ARGUMENTS = [
-        # required args
-        # {"name": "foo", "nargs": 1, "type": str, "default": "baz", "help": "Foo help"},
-        #
-        # optional args
-        # {"name": "--bar", "nargs": "?", "type": str,, "default": "foofoofoo", "help": "Bar help"},
-        # {"name": "--quiet", "action": "store_true", "help": "Do not output to stdout"},
-    ]
 
     def __init__(self):
         self.parser = argparse.ArgumentParser(
@@ -268,15 +262,60 @@ class ExportKobo(CommandLineTool):
     AP_ARGUMENTS = [
         {
             "name": "db",
-            "nargs": None,
+            "nargs": "?",
             "type": str,
-            "default": None,
+            "default": "./KoboReader.sqlite",
             "help": "Path of the input KoboReader.sqlite file"
+        },
+        {
+            "name": "--list",
+            "action": "store_true",
+            "help": "List the titles of books with annotations or highlights"
+        },
+        {
+            "name": "--info",
+            "action": "store_true",
+            "help": "Print information about the number of annotations and highlights"
         },
         {
             "name": "--ui",
             "action": "store_true",
             "help": "Start a web server to navigate the books"
+        },
+        {
+            "name": "--book",
+            "nargs": "?",
+            "type": str,
+            "default": None,
+            "help": "Output annotations and highlights only from the book with the given title"
+        },
+        {
+            "name": "--bookid",
+            "nargs": "?",
+            "type": str,
+            "default": None,
+            "help": "Output annotations and highlights only from the book with the given ID"
+        },
+        {
+            "name": "--all",
+            "action": "store_true",
+            "help": "Output annotations and highlights from all books"
+        },
+        {
+            "name": "--annotations-only",
+            "action": "store_true",
+            "help": "Outputs annotations only, excluding highlights"
+        },
+        {
+            "name": "--highlights-only",
+            "action": "store_true",
+            "help": "Outputs highlights only, excluding annotations"
+        },
+        {
+            # "name": "--group-by-chapter",
+            "name": "--add-chapter-headings",
+            "action": "store_true",
+            "help": "Add the chapter headings to the output (markdown only)."
         },
         {
             "name": "--output",
@@ -301,99 +340,59 @@ class ExportKobo(CommandLineTool):
             "help": "Output data in JSON format"
         },
         {
-            # "name": "--group-by-chapter",
-            "name": "--add-chapter-headings",
-            "action": "store_true",
-            "help": "Add the chapter headings to the output (markdown only)."
-        },
-        {
             "name": "--kindle",
             "action": "store_true",
             "help": "Output in Kindle 'My Clippings.txt' format"
         },
         {
-            "name": "--list",
+            "name": "--raw",
             "action": "store_true",
-            "help": "List the titles of books with annotations or highlights"
-        },
-        {
-            "name": "--book",
-            "nargs": "?",
-            "type": str,
-            "default": None,
-            "help": "Output annotations and highlights only from the book with the given title"
-        },
-        {
-            "name": "--bookid",
-            "nargs": "?",
-            "type": str,
-            "default": None,
-            "help": "Output annotations and highlights only from the book with the given ID"
-        },
-        {
-            "name": "--annotations-only",
-            "action": "store_true",
-            "help": "Outputs annotations only, excluding highlights"
-        },
-        {
-            "name": "--highlights-only",
-            "action": "store_true",
-            "help": "Outputs highlights only, excluding annotations"
-        },
-        {
-            "name": "--info",
-            "action": "store_true",
-            "help": "Print information about the number of annotations and highlights"
-        },
-        {
-          "name": "--raw",
-          "action": "store_true",
-          "help": "Output in raw text instead of human-readable format"
+            "help": "Output in raw text instead of human-readable format"
         },
     ]
 
     QUERY_DB_VERSION = "SELECT version FROM DbVersion;"
 
     # Query items: get all books items (highlights and annotation) using VolumeID.
-    # 
-    # There's a problem for new DB version (175): 
+    #
+    # There's a problem for new DB version (175):
     # ContentID gets different for some reason between Bookmark and Content.
     # I'm not sure if this is a problem due to some annotation migration or is
     # a bug into the db of Kobo Color model.
     # Once confirmed please fix and use a single query if possible.
     QUERY_ITEMS_V175 = """
-        SELECT 
-            b.VolumeID, 
-            b.Text, 
-            b.Annotation, 
-            b.DateCreated, 
-            b.DateModified, 
+        SELECT
+            b.VolumeID,
+            b.Text,
+            b.Annotation,
+            b.DateCreated,
+            b.DateModified,
             b.ChapterProgress,
-            c.BookTitle, 
-            c.Title as Chapter, 
-            c.Attribution as Author, 
+            c.BookTitle,
+            c.Title as Chapter,
+            c.Attribution as Author,
             b.BookmarkID
         FROM Bookmark b INNER JOIN content c
-        ON b.VolumeID = c.BookID 
-        GROUP BY b.DateCreated 
+        ON b.VolumeID = c.BookID
+        GROUP BY b.DateCreated
         ORDER BY b.ChapterProgress ASC, b.DateCreated ASC;
     """
 
     QUERY_ITEMS_V174 = """
-        SELECT 
-            b.VolumeID, 
-            b.Text, 
-            b.Annotation, 
-            b.DateCreated, 
+        SELECT
+            b.VolumeID,
+            b.Text,
+            b.Annotation,
+            b.DateCreated,
             b.DateModified,
-            b.ChapterProgress, 
-            c.BookTitle, 
-            c.Title as Chapter, 
-            c.Attribution as Author, 
+            b.ChapterProgress,
+            c.BookTitle,
+            c.Title as Chapter,
+            c.Attribution as Author,
             b.BookmarkID
         FROM Bookmark b LEFT JOIN content c
-        ON b.ContentID = c.ContentID 
-        GROUP BY b.DateCreated 
+        ON b.ContentID = c.ContentID
+        GROUP BY b.DateCreated
         ORDER BY b.ChapterProgress ASC, b.DateCreated ASC;
     """
 
@@ -418,11 +417,18 @@ class ExportKobo(CommandLineTool):
 
     def run_command(self):
         """
-        The main function of the tool: 
+        The main function of the tool:
             1. parse the parameters,
             2. read the given SQLite file
             3. format/output data as requested.
         """
+
+        # If only the default DB is specified and no other arguments, show help
+        if (self.vargs["db"] == "./KoboReader.sqlite" and
+            not any([self.vargs[key] for key in self.vargs if key != "db"])):
+            self.parser.print_help()
+            sys.exit(0)
+
         if self.vargs["db"] is None:
             self.error("You must specify a valid path to your KoboReader.sqlite file.")
 
@@ -575,7 +581,7 @@ class ExportKobo(CommandLineTool):
         else:
             output += book.to_markdown()
             if not self.vargs["add_chapter_headings"]:
-               output += "".join([i.markdown() for i in self.items])
+                output += "".join([i.markdown() for i in self.items])
             else:
                 last_entry = None
                 for i in self.items:
@@ -634,12 +640,12 @@ class ExportKobo(CommandLineTool):
     def read_items(self, dict_books, enum_books):
         """
         Query the SQLite file, filtering Item objects as specified
-        by the user. 
+        by the user.
         This function modifies the object's state by setting self.items.
         """
         # Creating a new Item with the relative Book for extract title+author coming from the other table
         items = []
-        print(self.db_version)
+        # print(f'Database version: {self.db_version}\n')
         db_query = self.QUERY_ITEMS_V175 if self.db_version and self.db_version == 175 else self.QUERY_ITEMS_V174
         for item in self.query(db_query):
             volumeId = item[0]
