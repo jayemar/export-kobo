@@ -135,3 +135,7 @@ KoboReader.sqlite
 # vim
 *.swp
 *.swo
+
+# Output files
+*.md
+!README.md

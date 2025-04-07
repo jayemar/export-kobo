@@ -16,8 +16,8 @@
         <ul class="px-2 pb-4">
           {% for book in books %}
           <li class="my-1 truncate">
-            <a class="hover:underline" href="/book/{{loop.index0}}">
-              <span class="text-sm text-zinc-400">{{ loop.index0 }}</span>
+            <a class="hover:underline" href="/book/{{loop.index}}">
+              <span class="text-sm text-zinc-400">{{ loop.index }}</span>
                 {{ book.title }}
               <span class="text-zinc-500 text-xs ml">({{ book.itemscount }})</span>
             </a>

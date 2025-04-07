@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# DB_PATH=./KoboReader.sqlite
+DB_PATH=/run/media/jayemar/KOBOeReader/.kobo/KoboReader.sqlite
+
+# Check the number of arguments
+if [ $# -eq 0 ]; then
+    python3 ./export-kobo.py $DB_PATH --list
+    # Do something for 0 arguments
+elif [ $# -eq 1 ]; then
+    python3 ./export-kobo.py $DB_PATH --bookid $1 --markdown
+    # Do something for 1 argument
+elif [ $# -eq 2 ]; then
+    python3 ./export-kobo.py $DB_PATH --bookid "$1" --markdown --output -
+    echo "Output written to '$(ls -t | head -n 1)'"
+    # Do something for 2 arguments
+else
+    echo "More than two arguments were passed."
+    # Handle cases with more than 2 arguments
+fi

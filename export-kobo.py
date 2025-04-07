@@ -160,7 +160,7 @@ class Item(object):
                 #output = "- {}\n\n".format(self.text)
                 output = f"\n### {self.chapter}\n\n - {self.text}\n"
             else:
-                output = "- {}\n".format(self.text)
+                output = "{}\n\n".format(self.text)
         else:
             output = ""
         return output
@@ -247,7 +247,7 @@ class Book(object):
         return self.__repr__()
 
     def to_markdown(self):
-        return "# {}\n## by {}\n---\n\n".format(self.title, self.author)
+        return "---\ntitle: {}\nauthor: {}\nrating: /\ntags: []\n---\n\n## Annotations\n\n".format(self.title, self.author)
 
 
 class ExportKobo(CommandLineTool):
@@ -257,6 +257,7 @@ class ExportKobo(CommandLineTool):
     from a Kobo SQLite file.
     """
 
+    current_book = None
     AP_PROGRAM = "export-kobo"
     AP_DESCRIPTION = "Export annotations and highlights from a Kobo SQLite file."
     AP_ARGUMENTS = [
@@ -302,29 +303,6 @@ class ExportKobo(CommandLineTool):
             "help": "Output annotations and highlights from all books"
         },
         {
-            "name": "--annotations-only",
-            "action": "store_true",
-            "help": "Outputs annotations only, excluding highlights"
-        },
-        {
-            "name": "--highlights-only",
-            "action": "store_true",
-            "help": "Outputs highlights only, excluding annotations"
-        },
-        {
-            # "name": "--group-by-chapter",
-            "name": "--add-chapter-headings",
-            "action": "store_true",
-            "help": "Add the chapter headings to the output (markdown only)."
-        },
-        {
-            "name": "--output",
-            "nargs": "?",
-            "type": str,
-            "default": None,
-            "help": "Output to file instead of using the standard output"
-        },
-        {
             "name": "--csv",
             "action": "store_true",
             "help": "Output data in CSV format"
@@ -348,6 +326,29 @@ class ExportKobo(CommandLineTool):
             "name": "--raw",
             "action": "store_true",
             "help": "Output in raw text instead of human-readable format"
+        },
+        {
+            "name": "--annotations-only",
+            "action": "store_true",
+            "help": "Outputs annotations only, excluding highlights"
+        },
+        {
+            "name": "--highlights-only",
+            "action": "store_true",
+            "help": "Outputs highlights only, excluding annotations"
+        },
+        {
+            # "name": "--group-by-chapter",
+            "name": "--add-chapter-headings",
+            "action": "store_true",
+            "help": "Add the chapter headings to the output (markdown only)."
+        },
+        {
+            "name": "--output",
+            "nargs": "?",
+            "type": str,
+            "default": None,
+            "help": "Output to file instead of using the standard output"
         },
     ]
 
@@ -375,7 +376,7 @@ class ExportKobo(CommandLineTool):
         FROM Bookmark b INNER JOIN content c
         ON b.VolumeID = c.BookID
         GROUP BY b.DateCreated
-        ORDER BY b.ChapterProgress ASC, b.DateCreated ASC;
+        ORDER BY Chapter ASC, b.DateCreated ASC;
     """
 
     QUERY_ITEMS_V174 = """
@@ -393,7 +394,7 @@ class ExportKobo(CommandLineTool):
         FROM Bookmark b LEFT JOIN content c
         ON b.ContentID = c.ContentID
         GROUP BY b.DateCreated
-        ORDER BY b.ChapterProgress ASC, b.DateCreated ASC;
+        ORDER BY Chapter ASC, b.DateCreated ASC;
     """
 
     QUERY_BOOKS = """
@@ -439,15 +440,16 @@ class ExportKobo(CommandLineTool):
         dict_books, enum_books = self.read_books()
 
         if self.vargs["ui"]:
+            self.read_items(dict_books, enum_books)
             self.run_server()
         else:
             if self.vargs["list"]:
                 # export: list of books only
                 output = []
-                output.append(("ID", "AUTHOR", "TITLE"))
+                output.append(("ID", "TITLE", "AUTHOR"))
 
                 for (i, book) in enum_books:
-                    output.append((i, book.author, book.title))
+                    output.append((i, book.title, book.author))
 
                 if self.vargs["json"]:
                     output = json.dumps(list(dict_books.values()), default=lambda o: o.__dict__, indent=2)
@@ -474,7 +476,9 @@ class ExportKobo(CommandLineTool):
                     # human-readable format
                     output = "\n".join([("{}\n".format(i)) for i in self.items])
 
-            if self.vargs["output"] is not None:
+            if self.vargs["output"]:
+                if self.vargs["output"] == "-":
+                    self.vargs["output"] = self.current_book.title + ".md"
                 # write to file
                 try:
                     with io.open(self.vargs["output"], "w", encoding="utf-8") as f:
@@ -553,6 +557,8 @@ class ExportKobo(CommandLineTool):
             """
             When user click on a book, show all the information displayed.
             """
+            # Books are one-indexed in the UI so subtract 1 to zero-index
+            book_id -= 1
             books = [x[1] for x in g.book_manager.get_books()]
             (book, items) = g.book_manager.get_book_with_items_by_index(book_id)
             if book and items:
@@ -631,11 +637,18 @@ class ExportKobo(CommandLineTool):
         bookid, booktitle = self.vargs["bookid"], self.vargs["book"]
 
         if (bookid is None) and (booktitle is not None):
+            self.current_book = None
             return None
         if bookid is not None:
-            return self.get_book_by_id(bookid)
+            # return self.get_book_by_id(bookid)
+            resp = self.get_book_by_id(bookid)
+            self.current_book = resp
+            return resp
         if booktitle is not None:
-            return filter(lambda i, b: b.title == booktitle, books)[0]
+            # return filter(lambda i, b: b.title == booktitle, books)[0]
+            resp = filter(lambda i, b: b.title == booktitle, books)[0]
+            self.current_book = resp
+            return resp
 
     def read_items(self, dict_books, enum_books):
         """
