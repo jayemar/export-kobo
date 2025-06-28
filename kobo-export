@@ -8,17 +8,23 @@ if [ ! -e $DB_PATH ]; then
     exit 1
 fi
 
-# Check the number of arguments
+
+# 0 arguments, list all books
 if [ $# -eq 0 ]; then
     python3 ./export-kobo.py $DB_PATH --list
-    # Do something for 0 arguments
+
+# 1 argument, export book number as markdown
 elif [ $# -eq 1 ]; then
     python3 ./export-kobo.py $DB_PATH --bookid $1 --markdown
-    # Do something for 1 argument
+
+
+# 2 arguments, export book number to automatically named: USE THIS ONE!!
 elif [ $# -eq 2 ]; then
     python3 ./export-kobo.py $DB_PATH --bookid "$1" --markdown --output -
     echo "Output written to '$(ls -t | head -n 1)'"
-    # Do something for 2 arguments
+
+
+# more than 2 arguments are not allowed
 else
     echo "More than two arguments were passed."
     # Handle cases with more than 2 arguments
