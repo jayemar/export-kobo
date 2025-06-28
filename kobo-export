@@ -3,6 +3,11 @@
 # DB_PATH=./KoboReader.sqlite
 DB_PATH=/run/media/jayemar/KOBOeReader/.kobo/KoboReader.sqlite
 
+if [ ! -e $DB_PATH ]; then
+    echo -e "db unavailable at $DB_PATH\n=> Is kobo mounted?"
+    exit 1
+fi
+
 # Check the number of arguments
 if [ $# -eq 0 ]; then
     python3 ./export-kobo.py $DB_PATH --list
